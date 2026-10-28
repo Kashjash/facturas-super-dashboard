@@ -5,6 +5,7 @@ import {
 
 import { CONFIG } from "./config.js";
 
+// FORMATOS
 const currency = new Intl.NumberFormat("es-PA", {
   style: "currency",
   currency: "USD"
@@ -25,6 +26,7 @@ const dateFormat = new Intl.DateTimeFormat("es-PA", {
   year: "numeric"
 });
 
+// AUTENTICACIÓN
 const msalInstance = new PublicClientApplication({
   auth: {
     clientId: CONFIG.clientId,
@@ -39,6 +41,7 @@ const msalInstance = new PublicClientApplication({
 
 await msalInstance.initialize();
 
+// ELEMENTOS HTML
 const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
 const refreshButton = document.getElementById("refreshButton");
@@ -50,6 +53,7 @@ let account = null;
 let products = [];
 let charts = {};
 
+// ESTADO
 function setStatus(message, type = "") {
   statusBox.textContent = message;
   statusBox.className = `status ${type}`.trim();
@@ -58,13 +62,29 @@ function setStatus(message, type = "") {
 function setLoading(loading) {
   loginButton.disabled = loading;
   refreshButton.disabled = loading;
-  loginButton.textContent = loading ? "Conectando..." : "Iniciar sesión";
-  refreshButton.textContent = loading ? "Actualizando..." : "Actualizar";
+
+  loginButton.textContent = loading
+    ? "Conectando..."
+    : "Iniciar sesión";
+
+  refreshButton.textContent = loading
+    ? "Actualizando..."
+    : "Actualizar";
 }
 
+// CONVERSIONES
 function asNumber(value) {
-  if (typeof value === "number") return value;
-  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
 
   const cleaned = String(value)
     .replace(/\$/g, "")
@@ -72,11 +92,15 @@ function asNumber(value) {
     .trim();
 
   const result = Number(cleaned);
+
   return Number.isFinite(result) ? result : 0;
 }
 
 function asDate(value) {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+  if (
+    value instanceof Date &&
+    !Number.isNaN(value.getTime())
+  ) {
     return value;
   }
 
@@ -84,11 +108,17 @@ function asDate(value) {
     const parsed = XLSX.SSF.parse_date_code(value);
 
     if (parsed) {
-      return new Date(parsed.y, parsed.m - 1, parsed.d);
+      return new Date(
+        parsed.y,
+        parsed.m - 1,
+        parsed.d,
+        12
+      );
     }
   }
 
   const text = String(value ?? "").trim();
+
   const match = text.match(
     /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/
   );
@@ -97,12 +127,31 @@ function asDate(value) {
     return new Date(
       Number(match[3]),
       Number(match[2]) - 1,
-      Number(match[1])
+      Number(match[1]),
+      12
     );
   }
 
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+}
+
+function dateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function monthKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  return `${year}-${month}`;
 }
 
 function median(values) {
@@ -111,7 +160,9 @@ function median(values) {
     .filter(value => Number.isFinite(value))
     .sort((a, b) => a - b);
 
-  if (!clean.length) return 0;
+  if (!clean.length) {
+    return 0;
+  }
 
   const middle = Math.floor(clean.length / 2);
 
@@ -121,28 +172,42 @@ function median(values) {
 }
 
 function averageDays(dates) {
-  const uniqueDates = [...new Set(
-    dates
-      .filter(Boolean)
-      .map(date => date.toISOString().slice(0, 10))
-  )]
+  const uniqueDates = [
+    ...new Set(
+      dates
+        .filter(Boolean)
+        .map(dateKey)
+    )
+  ]
     .sort()
-    .map(value => new Date(`${value}T12:00:00`));
+    .map(value => {
+      const [year, month, day] = value
+        .split("-")
+        .map(Number);
 
-  if (uniqueDates.length < 2) return null;
+      return new Date(year, month - 1, day, 12);
+    });
+
+  if (uniqueDates.length < 2) {
+    return null;
+  }
 
   const differences = [];
 
   for (let i = 1; i < uniqueDates.length; i++) {
     differences.push(
-      (uniqueDates[i] - uniqueDates[i - 1]) / 86400000
+      (uniqueDates[i] - uniqueDates[i - 1]) /
+      86400000
     );
   }
 
-  return differences.reduce((sum, value) => sum + value, 0)
-    / differences.length;
+  return differences.reduce(
+    (sum, value) => sum + value,
+    0
+  ) / differences.length;
 }
 
+// TOKEN DE MICROSOFT GRAPH
 async function getAccessToken() {
   const request = {
     account,
@@ -150,11 +215,15 @@ async function getAccessToken() {
   };
 
   try {
-    const response = await msalInstance.acquireTokenSilent(request);
+    const response =
+      await msalInstance.acquireTokenSilent(request);
+
     return response.accessToken;
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
-      const response = await msalInstance.acquireTokenPopup(request);
+      const response =
+        await msalInstance.acquireTokenPopup(request);
+
       return response.accessToken;
     }
 
@@ -162,6 +231,7 @@ async function getAccessToken() {
   }
 }
 
+// LLAMADAS A GRAPH
 async function graphFetch(url, token, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -182,19 +252,32 @@ async function graphFetch(url, token, options = {}) {
   return response;
 }
 
+// BUSCAR EL EXCEL EN ONEDRIVE
 async function findWorkbook(token) {
-  const escapedName = CONFIG.workbookName.replaceAll("'", "''");
-  const searchTerm = encodeURIComponent(`'${escapedName}'`);
+  /*
+    Construimos el nombre de la operación por código para impedir
+    que el traductor del navegador cambie "search" por "HALLAR".
+  */
+  const operation = String.fromCharCode(
+    115, 101, 97, 114, 99, 104
+  );
+
+  const workbookName =
+    encodeURIComponent(CONFIG.workbookName);
 
   const url =
-    `https://graph.microsoft.com/V1.0/me/drive/root/HALLAR(q=${searchTerm})` +
-    "?$select=id,name,size,lastModifiedDateTime,parentReference,webUrl";
+    "https://graph.microsoft.com/v1.0/me/drive/root/" +
+    `${operation}(q='${workbookName}')` +
+    "?$select=id,name,size,lastModifiedDateTime," +
+    "parentReference,webUrl";
 
   const response = await graphFetch(url, token);
   const data = await response.json();
 
-  const matches = data.value.filter(item =>
-    item.name.toLowerCase() === CONFIG.workbookName.toLowerCase()
+  const matches = (data.value || []).filter(item =>
+    item.name &&
+    item.name.toLowerCase() ===
+      CONFIG.workbookName.toLowerCase()
   );
 
   if (!matches.length) {
@@ -212,21 +295,26 @@ async function findWorkbook(token) {
   return matches[0];
 }
 
+// DESCARGAR EL EXCEL
 async function downloadWorkbook(token, itemId) {
   const url =
-    `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`;
+    "https://graph.microsoft.com/v1.0/me/drive/items/" +
+    `${itemId}/content`;
 
   const response = await graphFetch(url, token);
+
   return response.arrayBuffer();
 }
 
+// LEER 01 DATOS FACTURAS
 function readInvoiceRows(buffer) {
   const workbook = XLSX.read(buffer, {
     type: "array",
     cellDates: true
   });
 
-  const sheet = workbook.Sheets[CONFIG.worksheetName];
+  const sheet =
+    workbook.Sheets[CONFIG.worksheetName];
 
   if (!sheet) {
     throw new Error(
@@ -251,7 +339,10 @@ function readInvoiceRows(buffer) {
     "Categoría"
   ];
 
-  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const headers = rows.length
+    ? Object.keys(rows[0])
+    : [];
+
   const missing = required.filter(
     header => !headers.includes(header)
   );
@@ -264,25 +355,48 @@ function readInvoiceRows(buffer) {
 
   return rows
     .map(row => ({
-      invoiceId: String(row["ID factura"] ?? "").trim(),
+      invoiceId: String(
+        row["ID factura"] ?? ""
+      ).trim(),
+
       date: asDate(row["Fecha Factura"]),
-      description: String(row["Descripción"] ?? "").trim(),
+
+      description: String(
+        row["Descripción"] ?? ""
+      ).trim(),
+
       quantity: asNumber(row["Cantidad"]),
-      unitPrice: asNumber(row["Valor Unitario"]),
-      itemValue: asNumber(row["Valor Item"]),
-      invoiceTotal: asNumber(row["Total Factura"]),
+
+      unitPrice: asNumber(
+        row["Valor Unitario"]
+      ),
+
+      itemValue: asNumber(
+        row["Valor Item"]
+      ),
+
+      invoiceTotal: asNumber(
+        row["Total Factura"]
+      ),
+
       product: String(
         row["Producto normalizado"] ||
         row["Descripción"] ||
         "Sin producto"
       ).trim(),
+
       category: String(
-        row["Categoría"] || "Sin categoría"
+        row["Categoría"] ||
+        "Sin categoría"
       ).trim()
     }))
-    .filter(row => row.invoiceId && row.date);
+    .filter(row =>
+      row.invoiceId &&
+      row.date
+    );
 }
 
+// CALCULAR MÉTRICAS
 function aggregateData(rows) {
   const invoices = new Map();
   const productMap = new Map();
@@ -299,7 +413,8 @@ function aggregateData(rows) {
 
     categoryMap.set(
       row.category,
-      (categoryMap.get(row.category) || 0) + row.itemValue
+      (categoryMap.get(row.category) || 0) +
+      row.itemValue
     );
 
     if (!productMap.has(row.product)) {
@@ -316,7 +431,8 @@ function aggregateData(rows) {
       });
     }
 
-    const product = productMap.get(row.product);
+    const product =
+      productMap.get(row.product);
 
     product.invoices.add(row.invoiceId);
     product.dates.push(row.date);
@@ -329,27 +445,33 @@ function aggregateData(rows) {
 
     product.quantityByInvoice.set(
       row.invoiceId,
-      (product.quantityByInvoice.get(row.invoiceId) || 0) +
-      row.quantity
+      (
+        product.quantityByInvoice.get(
+          row.invoiceId
+        ) || 0
+      ) + row.quantity
     );
 
-    const month = row.date.toISOString().slice(0, 7);
+    const month = monthKey(row.date);
 
     if (!product.pricesByMonth.has(month)) {
       product.pricesByMonth.set(month, []);
     }
 
     if (row.unitPrice > 0) {
-      product.pricesByMonth.get(month).push(row.unitPrice);
+      product.pricesByMonth
+        .get(month)
+        .push(row.unitPrice);
     }
   }
 
   for (const invoice of invoices.values()) {
-    const month = invoice.date.toISOString().slice(0, 7);
+    const month = monthKey(invoice.date);
 
     monthlyMap.set(
       month,
-      (monthlyMap.get(month) || 0) + invoice.total
+      (monthlyMap.get(month) || 0) +
+      invoice.total
     );
   }
 
@@ -358,11 +480,14 @@ function aggregateData(rows) {
   products = [...productMap.values()]
     .map(product => {
       const events = product.invoices.size;
+
       const recurrence = invoiceCount
         ? events / invoiceCount
         : 0;
 
-      const medianPrice = median(product.prices);
+      const medianPrice =
+        median(product.prices);
+
       const medianQuantity = median([
         ...product.quantityByInvoice.values()
       ]);
@@ -372,10 +497,13 @@ function aggregateData(rows) {
         events,
         recurrence,
         medianPrice,
-        averageDays: averageDays(product.dates),
+        averageDays: averageDays(
+          product.dates
+        ),
         usual: recurrence >= 0.4,
         medianQuantity,
-        basketCost: medianPrice * medianQuantity
+        basketCost:
+          medianPrice * medianQuantity
       };
     })
     .sort((a, b) => b.spend - a.spend);
@@ -386,23 +514,31 @@ function aggregateData(rows) {
 
   const totalSpend = [...invoices.values()]
     .reduce(
-      (sum, invoice) => sum + invoice.total,
+      (sum, invoice) =>
+        sum + invoice.total,
       0
     );
 
   return {
     rows,
-    invoices,
     invoiceCount,
     totalSpend,
     dates,
+
     monthly: [...monthlyMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b)),
+      .sort(
+        ([a], [b]) =>
+          a.localeCompare(b)
+      ),
+
     categories: [...categoryMap.entries()]
-      .sort((a, b) => b[1] - a[1])
+      .sort(
+        (a, b) => b[1] - a[1]
+      )
   };
 }
 
+// GRÁFICOS
 function destroyChart(name) {
   if (charts[name]) {
     charts[name].destroy();
@@ -419,14 +555,19 @@ function renderCharts(data) {
     {
       type: "line",
       data: {
-        labels: data.monthly.map(([month]) => month),
+        labels: data.monthly.map(
+          ([month]) => month
+        ),
         datasets: [{
           label: "Gasto mensual",
-          data: data.monthly.map(([, value]) => value),
+          data: data.monthly.map(
+            ([, value]) => value
+          ),
           borderColor: "#2563eb",
-          backgroundColor: "rgba(37,99,235,.12)",
+          backgroundColor:
+            "rgba(37,99,235,.12)",
           fill: true,
-          tension: .3
+          tension: 0.3
         }]
       },
       options: {
@@ -437,7 +578,8 @@ function renderCharts(data) {
           },
           tooltip: {
             callbacks: {
-              label: context => currency.format(context.raw)
+              label: context =>
+                currency.format(context.raw)
             }
           }
         },
@@ -445,7 +587,8 @@ function renderCharts(data) {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: value => currency.format(value)
+              callback: value =>
+                currency.format(value)
             }
           }
         }
@@ -487,7 +630,8 @@ function renderCharts(data) {
           tooltip: {
             callbacks: {
               label: context =>
-                `${context.label}: ${currency.format(context.raw)}`
+                `${context.label}: ` +
+                currency.format(context.raw)
             }
           }
         }
@@ -500,11 +644,23 @@ function renderCharts(data) {
     .sort((a, b) => b.events - a.events)
     .slice(0, 5);
 
-  const months = [...new Set(
-    priceProducts.flatMap(
-      product => [...product.pricesByMonth.keys()]
+  const months = [
+    ...new Set(
+      priceProducts.flatMap(
+        product => [
+          ...product.pricesByMonth.keys()
+        ]
+      )
     )
-  )].sort();
+  ].sort();
+
+  const colors = [
+    "#2563eb",
+    "#22c1c3",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ef4444"
+  ];
 
   charts.price = new Chart(
     document.getElementById("priceChart"),
@@ -515,6 +671,7 @@ function renderCharts(data) {
         datasets: priceProducts.map(
           (product, index) => ({
             label: product.product,
+
             data: months.map(month => {
               const values =
                 product.pricesByMonth.get(month);
@@ -523,14 +680,9 @@ function renderCharts(data) {
                 ? median(values)
                 : null;
             }),
-            borderColor: [
-              "#2563eb",
-              "#22c1c3",
-              "#f59e0b",
-              "#8b5cf6",
-              "#ef4444"
-            ][index],
-            tension: .25,
+
+            borderColor: colors[index],
+            tension: 0.25,
             spanGaps: true
           })
         )
@@ -545,7 +697,8 @@ function renderCharts(data) {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: value => currency.format(value)
+              callback: value =>
+                currency.format(value)
             }
           }
         }
@@ -554,35 +707,7 @@ function renderCharts(data) {
   );
 }
 
-function renderProductTable(filter = "") {
-  const query = filter.trim().toLowerCase();
-
-  const filtered = products.filter(product =>
-    product.product.toLowerCase().includes(query) ||
-    product.category.toLowerCase().includes(query)
-  );
-
-  document.getElementById("productTable").innerHTML =
-    filtered.map(product => `
-      <tr>
-        <td>${escapeHtml(product.product)}</td>
-        <td>${escapeHtml(product.category)}</td>
-        <td>${number.format(product.events)}</td>
-        <td>${percent.format(product.recurrence)}</td>
-        <td>${number.format(product.quantity)}</td>
-        <td>${currency.format(product.spend)}</td>
-        <td>${currency.format(product.medianPrice)}</td>
-        <td>${product.averageDays === null
-            ? "—"
-            : number.format(product.averageDays)}</td>
-        <td>${product.usual
-            ? '<span class="badge">Sí</span>'
-            : "No"}</td>
-        <td>${number.format(product.medianQuantity)}</td>
-        <td>${currency.format(product.basketCost)}</td>
-      </tr>`).join("");
-}
-
+// TABLA DE PRODUCTOS
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -592,31 +717,97 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function renderDashboard(data, workbookItem) {
-  document.getElementById("totalGasto").textContent =
+function renderProductTable(filter = "") {
+  const query =
+    filter.trim().toLowerCase();
+
+  const filtered = products.filter(
+    product =>
+      product.product
+        .toLowerCase()
+        .includes(query) ||
+      product.category
+        .toLowerCase()
+        .includes(query)
+  );
+
+  document.getElementById(
+    "productTable"
+  ).innerHTML = filtered
+    .map(product => `
+      <tr>
+        <td>${escapeHtml(product.product)}</td>
+        <td>${escapeHtml(product.category)}</td>
+        <td>${number.format(product.events)}</td>
+        <td>${percent.format(product.recurrence)}</td>
+        <td>${number.format(product.quantity)}</td>
+        <td>${currency.format(product.spend)}</td>
+        <td>${currency.format(product.medianPrice)}</td>
+        <td>${
+          product.averageDays === null
+            ? "—"
+            : number.format(product.averageDays)
+        }</td>
+        <td>${
+          product.usual
+            ? '<span class="badge">Sí</span>'
+            : "No"
+        }</td>
+        <td>${number.format(product.medianQuantity)}</td>
+        <td>${currency.format(product.basketCost)}</td>
+      </tr>
+    `)
+    .join("");
+}
+
+// PRESENTAR DASHBOARD
+function renderDashboard(
+  data,
+  workbookItem
+) {
+  document.getElementById(
+    "totalGasto"
+  ).textContent =
     currency.format(data.totalSpend);
 
-  document.getElementById("totalFacturas").textContent =
+  document.getElementById(
+    "totalFacturas"
+  ).textContent =
     number.format(data.invoiceCount);
 
-  document.getElementById("ticketPromedio").textContent =
-    currency.format(data.totalSpend / data.invoiceCount);
+  document.getElementById(
+    "ticketPromedio"
+  ).textContent =
+    currency.format(
+      data.totalSpend / data.invoiceCount
+    );
 
-  document.getElementById("totalProductos").textContent =
+  document.getElementById(
+    "totalProductos"
+  ).textContent =
     number.format(products.length);
 
   const firstDate = data.dates[0];
-  const lastDate = data.dates[data.dates.length - 1];
+  const lastDate =
+    data.dates[data.dates.length - 1];
 
-  document.getElementById("periodo").textContent =
-    `${dateFormat.format(firstDate)} — ${dateFormat.format(lastDate)}`;
+  document.getElementById(
+    "periodo"
+  ).textContent =
+    `${dateFormat.format(firstDate)} — ` +
+    `${dateFormat.format(lastDate)}`;
 
-  document.getElementById("sourceInfo").textContent =
+  document.getElementById(
+    "sourceInfo"
+  ).textContent =
     `${workbookItem.name} · ` +
-    `${data.rows.length.toLocaleString("es-PA")} líneas ·` +
-    `actualizado ${dateFormat.format(
-        new FECHA(workbookItem.lastModifiedDateTime)
-      )}`;
+    `${data.rows.length.toLocaleString("es-PA")} líneas · ` +
+    `actualizado ` +
+    dateFormat.format(
+      new Date(
+        workbookItem.lastModifiedDateTime
+      )
+    );
 
   renderCharts(data);
   renderProductTable();
@@ -624,22 +815,30 @@ function renderDashboard(data, workbookItem) {
   dashboard.hidden = false;
 }
 
+// CARGAR TODO
 async function loadDashboard() {
   setLoading(true);
-  setStatus("Buscando el Excel en OneDrive…");
+  setStatus(
+    "Buscando el Excel en OneDrive…"
+  );
 
   try {
-    const token = await getAccessToken();
+    const token =
+      await getAccessToken();
 
-    const profileResponse = await graphFetch(
-      "https://graph.microsoft.com/v1.0/me" +
-      "?$select=displayName,userPrincipalName",
-      token
-    );
+    const profileResponse =
+      await graphFetch(
+        "https://graph.microsoft.com/v1.0/me" +
+        "?$select=displayName,userPrincipalName",
+        token
+      );
 
-    const profile = await profileResponse.json();
+    const profile =
+      await profileResponse.json();
 
-    document.getElementById("usuario").textContent =
+    document.getElementById(
+      "usuario"
+    ).textContent =
       profile.displayName ||
       profile.userPrincipalName;
 
@@ -647,18 +846,24 @@ async function loadDashboard() {
       "Descargando la última versión guardada del Excel…"
     );
 
-    const workbookItem = await findWorkbook(token);
-    const buffer = await downloadWorkbook(
-      token,
-      workbookItem.id
-    );
+    const workbookItem =
+      await findWorkbook(token);
+
+    const buffer =
+      await downloadWorkbook(
+        token,
+        workbookItem.id
+      );
 
     setStatus(
       "Procesando facturas y calculando métricas…"
     );
 
-    const rows = readInvoiceRows(buffer);
-    const data = aggregateData(rows);
+    const rows =
+      readInvoiceRows(buffer);
+
+    const data =
+      aggregateData(rows);
 
     if (!data.invoiceCount) {
       throw new Error(
@@ -666,11 +871,14 @@ async function loadDashboard() {
       );
     }
 
-    renderDashboard(data, workbookItem);
+    renderDashboard(
+      data,
+      workbookItem
+    );
 
     setStatus(
       `Dashboard actualizado: ` +
-      `${number.format(data.invoiceCount)} facturas y` +
+      `${number.format(data.invoiceCount)} facturas y ` +
       `${number.format(rows.length)} líneas analizadas.`,
       "success"
     );
@@ -687,15 +895,20 @@ async function loadDashboard() {
   }
 }
 
+// INICIAR SESIÓN
 async function login() {
   try {
-    const response = await msalInstance.loginPopup({
-      scopes: CONFIG.scopes,
-      prompt: "select_account"
-    });
+    const response =
+      await msalInstance.loginPopup({
+        scopes: CONFIG.scopes,
+        prompt: "select_account"
+      });
 
     account = response.account;
-    msalInstance.setActiveAccount(account);
+
+    msalInstance.setActiveAccount(
+      account
+    );
 
     loginButton.hidden = true;
     logoutButton.hidden = false;
@@ -715,38 +928,65 @@ async function login() {
   }
 }
 
+// CERRAR SESIÓN
 async function logout() {
   await msalInstance.logoutPopup({
     account,
-    postLogoutRedirectUri: CONFIG.redirectUri
+    postLogoutRedirectUri:
+      CONFIG.redirectUri
   });
 
   account = null;
   dashboard.hidden = true;
+
   loginButton.hidden = false;
   logoutButton.hidden = true;
   refreshButton.hidden = true;
 
-  document.getElementById("usuario").textContent = "";
+  document.getElementById(
+    "usuario"
+  ).textContent = "";
 
   setStatus(
     "Sesión cerrada. Conecta tu cuenta Microsoft para cargar los datos."
   );
 }
 
-loginButton.addEventListener("click", login);
-refreshButton.addEventListener("click", loadDashboard);
-logoutButton.addEventListener("click", logout);
+// EVENTOS
+loginButton.addEventListener(
+  "click",
+  login
+);
 
-productSearch.addEventListener("input", event => {
-  renderProductTable(event.target.value);
-});
+refreshButton.addEventListener(
+  "click",
+  loadDashboard
+);
 
-const existingAccounts = msalInstance.getAllAccounts();
+logoutButton.addEventListener(
+  "click",
+  logout
+);
+
+productSearch.addEventListener(
+  "input",
+  event => {
+    renderProductTable(
+      event.target.value
+    );
+  }
+);
+
+// RECUPERAR SESIÓN EXISTENTE
+const existingAccounts =
+  msalInstance.getAllAccounts();
 
 if (existingAccounts.length) {
   account = existingAccounts[0];
-  msalInstance.setActiveAccount(account);
+
+  msalInstance.setActiveAccount(
+    account
+  );
 
   loginButton.hidden = true;
   logoutButton.hidden = false;
