@@ -5,7 +5,7 @@ import {
 
 import { CONFIG } from "./config.js";
 
-// FORMATOS
+// FORMATO
 const currency = new Intl.NumberFormat("es-PA", {
   style: "currency",
   currency: "USD"
@@ -74,9 +74,7 @@ function setLoading(loading) {
 
 // CONVERSIONES
 function asNumber(value) {
-  if (typeof value === "number") {
-    return value;
-  }
+  if (typeof value === "number") return value;
 
   if (
     value === null ||
@@ -120,7 +118,7 @@ function asDate(value) {
   const text = String(value ?? "").trim();
 
   const match = text.match(
-    /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/
   );
 
   if (match) {
@@ -157,12 +155,10 @@ function monthKey(date) {
 function median(values) {
   const clean = values
     .map(asNumber)
-    .filter(value => Number.isFinite(value))
+    .filter(Number.isFinite)
     .sort((a, b) => a - b);
 
-  if (!clean.length) {
-    return 0;
-  }
+  if (!clean.length) return 0;
 
   const middle = Math.floor(clean.length / 2);
 
@@ -188,9 +184,7 @@ function averageDays(dates) {
       return new Date(year, month - 1, day, 12);
     });
 
-  if (uniqueDates.length < 2) {
-    return null;
-  }
+  if (uniqueDates.length < 2) return null;
 
   const differences = [];
 
@@ -207,7 +201,7 @@ function averageDays(dates) {
   ) / differences.length;
 }
 
-// TOKEN DE MICROSOFT GRAPH
+// TOKEN
 async function getAccessToken() {
   const request = {
     account,
@@ -231,7 +225,7 @@ async function getAccessToken() {
   }
 }
 
-// LLAMADAS A GRAPH
+// MICROSOFT GRAPH
 async function graphFetch(url, token, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -252,69 +246,59 @@ async function graphFetch(url, token, options = {}) {
   return response;
 }
 
-// BUSCAR EL EXCEL EN ONEDRIVE
+// LOCALIZAR EL EXCEL POR SU RUTA EXACTA
 async function findWorkbook(token) {
-  /*
-    Construimos el nombre de la operación por código para impedir
-    que el traductor del navegador cambie "search" por "HALLAR".
-  */
-  const operation = String.fromCharCode(
-    115, 101, 97, 114, 99, 104
-  );
+  if (!CONFIG.workbookPath) {
+    throw new Error(
+      "Falta workbookPath en config.js."
+    );
+  }
 
-  const workbookName =
-    encodeURIComponent(CONFIG.workbookName);
+  const encodedPath = CONFIG.workbookPath
+    .split("/")
+    .map(segment => encodeURIComponent(segment))
+    .join("/");
 
   const url =
-    "https://graph.microsoft.com/v1.0/me/drive/root/" +
-    `${operation}(q='${workbookName}')` +
+    "https://graph.microsoft.com/v1.0/me/drive/" +
+    `special/documents:/${encodedPath}:` +
     "?$select=id,name,size,lastModifiedDateTime," +
     "parentReference,webUrl";
 
   const response = await graphFetch(url, token);
-  const data = await response.json();
+  const workbookItem = await response.json();
 
-  const matches = (data.value || []).filter(item =>
-    item.name &&
-    item.name.toLowerCase() ===
-      CONFIG.workbookName.toLowerCase()
-  );
-
-  if (!matches.length) {
+  if (
+    workbookItem.name?.toLowerCase() !==
+    CONFIG.workbookName.toLowerCase()
+  ) {
     throw new Error(
-      `No se encontró "${CONFIG.workbookName}" en tu OneDrive.`
+      `La ruta encontrada no corresponde a "${CONFIG.workbookName}".`
     );
   }
 
-  matches.sort(
-    (a, b) =>
-      new Date(b.lastModifiedDateTime) -
-      new Date(a.lastModifiedDateTime)
-  );
-
-  return matches[0];
+  return workbookItem;
 }
 
 // DESCARGAR EL EXCEL
 async function downloadWorkbook(token, itemId) {
   const url =
     "https://graph.microsoft.com/v1.0/me/drive/items/" +
-    `${itemId}/content`;
+    `${encodeURIComponent(itemId)}/content`;
 
   const response = await graphFetch(url, token);
 
   return response.arrayBuffer();
 }
 
-// LEER 01 DATOS FACTURAS
+// LEER LA PESTAÑA DE FACTURAS
 function readInvoiceRows(buffer) {
   const workbook = XLSX.read(buffer, {
     type: "array",
     cellDates: true
   });
 
-  const sheet =
-    workbook.Sheets[CONFIG.worksheetName];
+  const sheet = workbook.Sheets[CONFIG.worksheetName];
 
   if (!sheet) {
     throw new Error(
@@ -431,8 +415,7 @@ function aggregateData(rows) {
       });
     }
 
-    const product =
-      productMap.get(row.product);
+    const product = productMap.get(row.product);
 
     product.invoices.add(row.invoiceId);
     product.dates.push(row.date);
@@ -485,8 +468,7 @@ function aggregateData(rows) {
         ? events / invoiceCount
         : 0;
 
-      const medianPrice =
-        median(product.prices);
+      const medianPrice = median(product.prices);
 
       const medianQuantity = median([
         ...product.quantityByInvoice.values()
@@ -497,9 +479,7 @@ function aggregateData(rows) {
         events,
         recurrence,
         medianPrice,
-        averageDays: averageDays(
-          product.dates
-        ),
+        averageDays: averageDays(product.dates),
         usual: recurrence >= 0.4,
         medianQuantity,
         basketCost:
@@ -527,8 +507,7 @@ function aggregateData(rows) {
 
     monthly: [...monthlyMap.entries()]
       .sort(
-        ([a], [b]) =>
-          a.localeCompare(b)
+        ([a], [b]) => a.localeCompare(b)
       ),
 
     categories: [...categoryMap.entries()]
@@ -718,8 +697,7 @@ function escapeHtml(value) {
 }
 
 function renderProductTable(filter = "") {
-  const query =
-    filter.trim().toLowerCase();
+  const query = filter.trim().toLowerCase();
 
   const filtered = products.filter(
     product =>
@@ -760,11 +738,8 @@ function renderProductTable(filter = "") {
     .join("");
 }
 
-// PRESENTAR DASHBOARD
-function renderDashboard(
-  data,
-  workbookItem
-) {
+// MOSTRAR DASHBOARD
+function renderDashboard(data, workbookItem) {
   document.getElementById(
     "totalGasto"
   ).textContent =
@@ -802,11 +777,9 @@ function renderDashboard(
   ).textContent =
     `${workbookItem.name} · ` +
     `${data.rows.length.toLocaleString("es-PA")} líneas · ` +
-    `actualizado ` +
+    "actualizado " +
     dateFormat.format(
-      new Date(
-        workbookItem.lastModifiedDateTime
-      )
+      new Date(workbookItem.lastModifiedDateTime)
     );
 
   renderCharts(data);
@@ -815,26 +788,23 @@ function renderDashboard(
   dashboard.hidden = false;
 }
 
-// CARGAR TODO
+// CARGAR DASHBOARD
 async function loadDashboard() {
   setLoading(true);
   setStatus(
-    "Buscando el Excel en OneDrive…"
+    "Localizando el Excel en OneDrive…"
   );
 
   try {
-    const token =
-      await getAccessToken();
+    const token = await getAccessToken();
 
-    const profileResponse =
-      await graphFetch(
-        "https://graph.microsoft.com/v1.0/me" +
-        "?$select=displayName,userPrincipalName",
-        token
-      );
+    const profileResponse = await graphFetch(
+      "https://graph.microsoft.com/v1.0/me" +
+      "?$select=displayName,userPrincipalName",
+      token
+    );
 
-    const profile =
-      await profileResponse.json();
+    const profile = await profileResponse.json();
 
     document.getElementById(
       "usuario"
@@ -842,28 +812,24 @@ async function loadDashboard() {
       profile.displayName ||
       profile.userPrincipalName;
 
+    const workbookItem =
+      await findWorkbook(token);
+
     setStatus(
       "Descargando la última versión guardada del Excel…"
     );
 
-    const workbookItem =
-      await findWorkbook(token);
-
-    const buffer =
-      await downloadWorkbook(
-        token,
-        workbookItem.id
-      );
+    const buffer = await downloadWorkbook(
+      token,
+      workbookItem.id
+    );
 
     setStatus(
       "Procesando facturas y calculando métricas…"
     );
 
-    const rows =
-      readInvoiceRows(buffer);
-
-    const data =
-      aggregateData(rows);
+    const rows = readInvoiceRows(buffer);
+    const data = aggregateData(rows);
 
     if (!data.invoiceCount) {
       throw new Error(
@@ -871,10 +837,7 @@ async function loadDashboard() {
       );
     }
 
-    renderDashboard(
-      data,
-      workbookItem
-    );
+    renderDashboard(data, workbookItem);
 
     setStatus(
       `Dashboard actualizado: ` +
@@ -906,9 +869,7 @@ async function login() {
 
     account = response.account;
 
-    msalInstance.setActiveAccount(
-      account
-    );
+    msalInstance.setActiveAccount(account);
 
     loginButton.hidden = true;
     logoutButton.hidden = false;
@@ -971,22 +932,18 @@ logoutButton.addEventListener(
 productSearch.addEventListener(
   "input",
   event => {
-    renderProductTable(
-      event.target.value
-    );
+    renderProductTable(event.target.value);
   }
 );
 
-// RECUPERAR SESIÓN EXISTENTE
+// RECUPERAR SESIÓN
 const existingAccounts =
   msalInstance.getAllAccounts();
 
 if (existingAccounts.length) {
   account = existingAccounts[0];
 
-  msalInstance.setActiveAccount(
-    account
-  );
+  msalInstance.setActiveAccount(account);
 
   loginButton.hidden = true;
   logoutButton.hidden = false;
