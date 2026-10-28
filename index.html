@@ -3,12 +3,326 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard Facturas Super</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-  <link rel="stylesheet" href="./styles.css">
+  <title>Facturas Super</title>
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --navy: #14213d;
+      --blue: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --background: #f4f7fb;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #e4e9f2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family: Inter, system-ui, "Segoe UI", sans-serif;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px max(4vw, 18px);
+      color: white;
+      background: linear-gradient(120deg, var(--navy), #1e3a8a);
+    }
+
+    h1 {
+      margin: 2px 0;
+      font-size: clamp(28px, 4vw, 42px);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: #9ec5ff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+    }
+
+    #periodo {
+      margin: 5px 0 0;
+      color: #dbeafe;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 8px;
+      color: white;
+      background: var(--blue);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.12);
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 10px max(4vw, 18px);
+      border-bottom: 1px solid var(--border);
+      background: white;
+    }
+
+    .tab {
+      flex: 0 0 auto;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .tab.active {
+      color: white;
+      background: var(--blue);
+    }
+
+    main {
+      max-width: 1500px;
+      margin: auto;
+      padding: 20px max(4vw, 16px) 45px;
+    }
+
+    .status {
+      margin-bottom: 16px;
+      padding: 12px 15px;
+      border: 1px solid #bfdbfe;
+      border-radius: 9px;
+      color: #1e40af;
+      background: #eff6ff;
+    }
+
+    .status.success {
+      border-color: #a7f3d0;
+      color: #087f5b;
+      background: #ecfdf5;
+    }
+
+    .status.error {
+      border-color: #fecaca;
+      color: #b42318;
+      background: #fff1f2;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(130px, 250px));
+      gap: 10px;
+    }
+
+    .kpi,
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 5px 18px rgba(15,23,42,.045);
+    }
+
+    .kpi {
+      min-height: 74px;
+      padding: 12px 15px;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .kpi strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--navy);
+      font-size: 22px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .panel {
+      margin-top: 15px;
+      padding: 18px;
+    }
+
+    .summary-grid .panel { margin-top: 0; }
+
+    .panel-title {
+      margin-bottom: 14px;
+    }
+
+    .panel-title span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 420px;
+    }
+
+    .summary-grid .chart-box {
+      height: 300px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 620px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 11px 10px;
+      color: white;
+      background: var(--navy);
+      text-align: right;
+    }
+
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+    }
+
+    th:first-child,
+    th:nth-child(2),
+    td:first-child,
+    td:nth-child(2) {
+      text-align: left;
+    }
+
+    tbody tr:hover { background: #f8fafc; }
+
+    .positive {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .negative {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    details {
+      margin-bottom: 9px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: white;
+    }
+
+    summary {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 13px 15px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    summary span {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 850px) {
+      header,
+      footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-box {
+        height: 520px;
+      }
+
+      .summary-grid .chart-box {
+        height: 340px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .kpi {
+        padding: 10px;
+      }
+
+      .kpi strong {
+        font-size: 18px;
+      }
+
+      .panel {
+        padding: 12px;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -37,7 +351,7 @@
 
   <main>
     <section id="status" class="status">
-      Conecta tu cuenta Microsoft para leer el Excel privado de OneDrive.
+      Conecta tu cuenta Microsoft para leer el Excel privado.
     </section>
 
     <div id="dashboard" hidden>
@@ -68,69 +382,67 @@
         <div class="summary-grid">
           <article class="panel">
             <div class="panel-title">
-              <div>
-                <h2>Gasto reciente</h2>
-                <span>Últimos meses disponibles</span>
-              </div>
+              <h2>Gasto reciente</h2>
+              <span>Últimos ocho meses disponibles</span>
             </div>
-            <canvas id="summaryMonthlyChart"></canvas>
+            <div class="chart-box">
+              <canvas id="summaryMonthlyChart"></canvas>
+            </div>
           </article>
 
           <article class="panel">
             <div class="panel-title">
-              <div>
-                <h2>Principales categorías</h2>
-                <span>Concentración del gasto</span>
-              </div>
+              <h2>Principales categorías</h2>
+              <span>Categorías que concentran el gasto</span>
             </div>
-            <canvas id="summaryCategoryChart"></canvas>
+            <div class="chart-box">
+              <canvas id="summaryCategoryChart"></canvas>
+            </div>
           </article>
         </div>
       </section>
 
       <section id="mensual" class="tab-panel">
-        <article class="panel large-panel">
+        <article class="panel">
           <div class="panel-title">
-            <div>
-              <h2>Gasto mensual</h2>
-              <span>Eje en miles; meses y años agrupados</span>
-            </div>
+            <h2>Gasto mensual</h2>
+            <span>Importes expresados en miles</span>
           </div>
-          <canvas id="monthlyChart"></canvas>
+          <div class="chart-box">
+            <canvas id="monthlyChart"></canvas>
+          </div>
         </article>
       </section>
 
       <section id="categorias" class="tab-panel">
-        <article class="panel large-panel">
+        <article class="panel">
           <div class="panel-title">
-            <div>
-              <h2>Gasto por categoría</h2>
-              <span>Categorías que explican 80% del gasto; resto agrupado</span>
-            </div>
+            <h2>Gasto por categoría</h2>
+            <span>Principales categorías hasta alcanzar 80%; resto agrupado</span>
           </div>
-          <canvas id="categoryChart"></canvas>
+          <div class="chart-box">
+            <canvas id="categoryChart"></canvas>
+          </div>
         </article>
 
         <article class="panel">
           <div class="panel-title">
-            <div>
-              <h2>Detalle por categoría</h2>
-              <span>Abre cada categoría para ver sus productos principales</span>
-            </div>
+            <h2>Productos por categoría</h2>
+            <span>Abre una categoría para ver sus productos principales</span>
           </div>
-          <div id="categoryDetails" class="category-details"></div>
+          <div id="categoryDetails"></div>
         </article>
       </section>
 
       <section id="precios" class="tab-panel">
-        <article class="panel large-panel">
+        <article class="panel">
           <div class="panel-title">
-            <div>
-              <h2>Productos con variación de precio</h2>
-              <span>Solo cambios de ±5% o más entre la primera y última observación</span>
-            </div>
+            <h2>Variaciones de precio</h2>
+            <span>Productos con cambios de ±5% o más</span>
           </div>
-          <canvas id="priceChangeChart"></canvas>
+          <div class="chart-box">
+            <canvas id="priceChangeChart"></canvas>
+          </div>
         </article>
 
         <article class="panel">
@@ -154,14 +466,14 @@
       </section>
 
       <section id="canasta" class="tab-panel">
-        <div class="basket-kpis">
+        <div class="kpis">
           <article class="kpi">
             <span>Valor habitual base</span>
             <strong id="basketBaseline">—</strong>
           </article>
 
           <article class="kpi">
-            <span>Valor del último mes</span>
+            <span>Valor último mes</span>
             <strong id="basketLatest">—</strong>
           </article>
 
@@ -176,14 +488,14 @@
           </article>
         </div>
 
-        <article class="panel large-panel">
+        <article class="panel">
           <div class="panel-title">
-            <div>
-              <h2>Canasta habitual mensual</h2>
-              <span>Valor estimado y desviación frente al valor base</span>
-            </div>
+            <h2>Canasta habitual mensual</h2>
+            <span>Valor estimado y desviación frente a la base</span>
           </div>
-          <canvas id="basketChart"></canvas>
+          <div class="chart-box">
+            <canvas id="basketChart"></canvas>
+          </div>
         </article>
 
         <article class="panel">
@@ -212,6 +524,1009 @@
     </div>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module">
+    import {
+      PublicClientApplication,
+      InteractionRequiredAuthError
+    } from "https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/+esm";
+
+    const CONFIG = {
+      clientId: "0a825654-a3fa-49f6-9a1e-09b5db5ed0ac",
+      authority: "https://login.microsoftonline.com/common",
+      redirectUri:
+        "https://kashjash.github.io/facturas-super-dashboard/",
+      workbookPath:
+        "Julio Alonso Fraiz/2.- Personal/3 - Gastos/Analizador Facturas Super.xlsx",
+      worksheetName: "01 Datos Facturas",
+      scopes: ["User.Read", "Files.Read"]
+    };
+
+    const $ = id => {
+      const item = document.getElementById(id);
+      if (!item) throw new Error(`Falta el elemento ${id}.`);
+      return item;
+    };
+
+    const money = new Intl.NumberFormat("es-PA", {
+      style: "currency",
+      currency: "USD"
+    });
+
+    const number = new Intl.NumberFormat("es-PA", {
+      maximumFractionDigits: 2
+    });
+
+    const integer = new Intl.NumberFormat("es-PA", {
+      maximumFractionDigits: 0
+    });
+
+    const percent = new Intl.NumberFormat("es-PA", {
+      style: "percent",
+      maximumFractionDigits: 1
+    });
+
+    const dates = new Intl.DateTimeFormat("es-PA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+
+    const monthNames = [
+      "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ];
+
+    const msal = new PublicClientApplication({
+      auth: {
+        clientId: CONFIG.clientId,
+        authority: CONFIG.authority,
+        redirectUri: CONFIG.redirectUri,
+        postLogoutRedirectUri: CONFIG.redirectUri
+      },
+      cache: {
+        cacheLocation: "localStorage"
+      }
+    });
+
+    await msal.initialize();
+
+    let account = null;
+    let products = [];
+    let charts = {};
+
+    function status(message, type = "") {
+      $("status").textContent = message;
+      $("status").className = `status ${type}`.trim();
+    }
+
+    function loading(value) {
+      $("loginButton").disabled = value;
+      $("refreshButton").disabled = value;
+      $("refreshButton").textContent =
+        value ? "Actualizando..." : "Actualizar";
+    }
+
+    function numeric(value) {
+      if (typeof value === "number") return value;
+      const result = Number(
+        String(value ?? "")
+          .replace(/\$/g, "")
+          .replace(/,/g, "")
+          .trim()
+      );
+      return Number.isFinite(result) ? result : 0;
+    }
+
+    function excelDate(value) {
+      if (value instanceof Date) return value;
+
+      if (typeof value === "number") {
+        const parsed = XLSX.SSF.parse_date_code(value);
+        if (parsed) {
+          return new Date(parsed.y, parsed.m - 1, parsed.d, 12);
+        }
+      }
+
+      const text = String(value ?? "");
+      const match = text.match(
+        /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/
+      );
+
+      if (match) {
+        return new Date(
+          Number(match[3]),
+          Number(match[2]) - 1,
+          Number(match[1]),
+          12
+        );
+      }
+
+      const result = new Date(text);
+      return Number.isNaN(result.getTime()) ? null : result;
+    }
+
+    function monthKey(date) {
+      return `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}`;
+    }
+
+    function median(values) {
+      const sorted = values
+        .map(numeric)
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b);
+
+      if (!sorted.length) return 0;
+
+      const middle = Math.floor(sorted.length / 2);
+
+      return sorted.length % 2
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function colors(index) {
+      const palette = [
+        "#2563eb", "#0891b2", "#059669", "#d97706",
+        "#7c3aed", "#dc2626", "#64748b", "#db2777",
+        "#65a30d", "#4f46e5", "#ea580c"
+      ];
+
+      return palette[index % palette.length];
+    }
+
+    function destroy(name) {
+      if (charts[name]) {
+        charts[name].destroy();
+        charts[name] = null;
+      }
+    }
+
+    function monthLabels(months) {
+      const groups = {};
+
+      months.forEach((month, index) => {
+        const year = month.slice(0, 4);
+        (groups[year] ||= []).push(index);
+      });
+
+      const centers = {};
+
+      Object.entries(groups).forEach(([year, indexes]) => {
+        centers[
+          Math.floor((indexes[0] + indexes.at(-1)) / 2)
+        ] = year;
+      });
+
+      return months.map((month, index) => [
+        monthNames[Number(month.slice(5, 7)) - 1],
+        centers[index] || ""
+      ]);
+    }
+
+    function group80(items, label = "20% restante") {
+      const sorted = [...items].sort((a, b) => b.value - a.value);
+      const total = sorted.reduce((sum, item) => sum + item.value, 0);
+
+      let accumulated = 0;
+      const shown = [];
+      const hidden = [];
+
+      sorted.forEach(item => {
+        if (!shown.length || accumulated / total < 0.8) {
+          shown.push(item);
+          accumulated += item.value;
+        } else {
+          hidden.push(item);
+        }
+      });
+
+      const remainder = hidden.reduce(
+        (sum, item) => sum + item.value,
+        0
+      );
+
+      if (remainder > 0) {
+        shown.push({ label, value: remainder });
+      }
+
+      return shown;
+    }
+
+    async function token() {
+      const request = {
+        account,
+        scopes: CONFIG.scopes
+      };
+
+      try {
+        return (
+          await msal.acquireTokenSilent(request)
+        ).accessToken;
+      } catch (error) {
+        if (error instanceof InteractionRequiredAuthError) {
+          return (
+            await msal.acquireTokenPopup(request)
+          ).accessToken;
+        }
+        throw error;
+      }
+    }
+
+    async function graph(url, accessToken) {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Microsoft Graph ${response.status}: ` +
+          await response.text()
+        );
+      }
+
+      return response;
+    }
+
+    async function getWorkbook(accessToken) {
+      const path = CONFIG.workbookPath
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+
+      const metadataUrl =
+        "https://graph.microsoft.com/v1.0/me/drive/" +
+        `special/documents:/${path}:` +
+        "?$select=id,name,lastModifiedDateTime";
+
+      const metadata = await (
+        await graph(metadataUrl, accessToken)
+      ).json();
+
+      const contentUrl =
+        "https://graph.microsoft.com/v1.0/me/drive/items/" +
+        `${encodeURIComponent(metadata.id)}/content`;
+
+      const buffer = await (
+        await graph(contentUrl, accessToken)
+      ).arrayBuffer();
+
+      return { metadata, buffer };
+    }
+
+    function readRows(buffer) {
+      const workbook = XLSX.read(buffer, {
+        type: "array",
+        cellDates: true
+      });
+
+      const sheet = workbook.Sheets[CONFIG.worksheetName];
+
+      if (!sheet) {
+        throw new Error(
+          `No existe la pestaña "${CONFIG.worksheetName}".`
+        );
+      }
+
+      return XLSX.utils.sheet_to_json(sheet, {
+        defval: null,
+        raw: true
+      }).map(row => ({
+        invoice: String(row["ID factura"] ?? "").trim(),
+        date: excelDate(row["Fecha Factura"]),
+        quantity: numeric(row["Cantidad"]),
+        price: numeric(row["Valor Unitario"]),
+        itemValue: numeric(row["Valor Item"]),
+        invoiceTotal: numeric(row["Total Factura"]),
+        product: String(
+          row["Producto normalizado"] ||
+          row["Descripción"] ||
+          "Sin producto"
+        ).trim(),
+        category: String(
+          row["Categoría"] || "Sin categoría"
+        ).trim()
+      })).filter(row => row.invoice && row.date);
+    }
+
+    function calculate(rows) {
+      const invoices = new Map();
+      const productMap = new Map();
+      const categoryMap = new Map();
+
+      rows.forEach(row => {
+        if (!invoices.has(row.invoice)) {
+          invoices.set(row.invoice, {
+            date: row.date,
+            total: row.invoiceTotal
+          });
+        }
+
+        categoryMap.set(
+          row.category,
+          (categoryMap.get(row.category) || 0) + row.itemValue
+        );
+
+        if (!productMap.has(row.product)) {
+          productMap.set(row.product, {
+            product: row.product,
+            category: row.category,
+            invoices: new Set(),
+            quantities: new Map(),
+            observations: [],
+            monthlyPrices: new Map(),
+            spend: 0
+          });
+        }
+
+        const product = productMap.get(row.product);
+
+        product.invoices.add(row.invoice);
+        product.spend += row.itemValue;
+
+        product.quantities.set(
+          row.invoice,
+          (product.quantities.get(row.invoice) || 0) +
+          row.quantity
+        );
+
+        if (row.price > 0) {
+          product.observations.push({
+            date: row.date,
+            price: row.price
+          });
+
+          const month = monthKey(row.date);
+
+          if (!product.monthlyPrices.has(month)) {
+            product.monthlyPrices.set(month, []);
+          }
+
+          product.monthlyPrices.get(month).push(row.price);
+        }
+      });
+
+      const monthlyMap = new Map();
+
+      invoices.forEach(invoice => {
+        const month = monthKey(invoice.date);
+
+        monthlyMap.set(
+          month,
+          (monthlyMap.get(month) || 0) + invoice.total
+        );
+      });
+
+      products = [...productMap.values()].map(product => {
+        product.observations.sort((a, b) => a.date - b.date);
+
+        const first = product.observations[0] || null;
+        const last = product.observations.at(-1) || null;
+        const medianPrice = median(
+          product.observations.map(item => item.price)
+        );
+        const medianQuantity = median(
+          [...product.quantities.values()]
+        );
+        const recurrence = product.invoices.size / invoices.size;
+
+        return {
+          ...product,
+          events: product.invoices.size,
+          recurrence,
+          medianPrice,
+          medianQuantity,
+          basketCost: medianPrice * medianQuantity,
+          habitual: recurrence >= 0.4,
+          first,
+          last,
+          priceChange:
+            first && last && first.price > 0
+              ? (last.price - first.price) / first.price
+              : 0
+        };
+      }).sort((a, b) => b.spend - a.spend);
+
+      return {
+        rows,
+        invoices,
+        total: [...invoices.values()].reduce(
+          (sum, invoice) => sum + invoice.total,
+          0
+        ),
+        invoiceCount: invoices.size,
+        invoiceDates: [...invoices.values()]
+          .map(invoice => invoice.date)
+          .sort((a, b) => a - b),
+        monthly: [...monthlyMap.entries()]
+          .sort(([a], [b]) => a.localeCompare(b)),
+        categories: [...categoryMap.entries()]
+          .map(([label, value]) => ({ label, value }))
+          .sort((a, b) => b.value - a.value)
+      };
+    }
+
+    function renderSummary(data) {
+      $("totalGasto").textContent = money.format(data.total);
+      $("totalFacturas").textContent = integer.format(data.invoiceCount);
+      $("ticketPromedio").textContent =
+        money.format(data.total / data.invoiceCount);
+      $("totalProductos").textContent = integer.format(products.length);
+
+      const recent = data.monthly.slice(-8);
+
+      destroy("summaryMonthly");
+      charts.summaryMonthly = new Chart(
+        $("summaryMonthlyChart"),
+        {
+          type: "bar",
+          data: {
+            labels: monthLabels(recent.map(item => item[0])),
+            datasets: [{
+              data: recent.map(item => item[1]),
+              backgroundColor: "#2563eb",
+              borderRadius: 5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: context => money.format(context.raw)
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: value =>
+                    `${number.format(value / 1000)}k`
+                }
+              }
+            }
+          }
+        }
+      );
+
+      const grouped = group80(data.categories, "Resto");
+
+      destroy("summaryCategory");
+      charts.summaryCategory = new Chart(
+        $("summaryCategoryChart"),
+        {
+          type: "doughnut",
+          data: {
+            labels: grouped.map(item => item.label),
+            datasets: [{
+              data: grouped.map(item => item.value),
+              backgroundColor: grouped.map((_, i) => colors(i))
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+              tooltip: {
+                callbacks: {
+                  label: context =>
+                    `${context.label}: ${money.format(context.raw)}`
+                }
+              }
+            }
+          }
+        }
+      );
+    }
+
+    function renderMonthly(data) {
+      destroy("monthly");
+
+      charts.monthly = new Chart($("monthlyChart"), {
+        type: "bar",
+        data: {
+          labels: monthLabels(data.monthly.map(item => item[0])),
+          datasets: [{
+            data: data.monthly.map(item => item[1]),
+            backgroundColor: "#2563eb",
+            borderRadius: 6,
+            maxBarThickness: 55
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: context => money.format(context.raw)
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                autoSkip: false,
+                maxRotation: 0
+              }
+            },
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "Miles"
+              },
+              ticks: {
+                callback: value =>
+                  number.format(value / 1000)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderCategories(data) {
+      const grouped = group80(data.categories);
+
+      destroy("category");
+      charts.category = new Chart($("categoryChart"), {
+        type: "bar",
+        data: {
+          labels: grouped.map(item => item.label),
+          datasets: [{
+            data: grouped.map(item => item.value),
+            backgroundColor: grouped.map((_, i) => colors(i)),
+            borderRadius: 5
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: context => money.format(context.raw)
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                callback: value =>
+                  `${number.format(value / 1000)}k`
+              }
+            }
+          }
+        }
+      });
+
+      const categories = [...new Set(
+        products.map(product => product.category)
+      )].map(category => {
+        const list = products.filter(
+          product => product.category === category
+        );
+
+        return {
+          category,
+          products: list,
+          spend: list.reduce(
+            (sum, product) => sum + product.spend,
+            0
+          )
+        };
+      }).sort((a, b) => b.spend - a.spend);
+
+      $("categoryDetails").innerHTML = categories.map(item => {
+        const groupedProducts = group80(
+          item.products.map(product => ({
+            label: product.product,
+            value: product.spend,
+            source: product
+          }))
+        );
+
+        return `
+          <details>
+            <summary>
+              ${escapeHtml(item.category)}
+              <span>${money.format(item.spend)}</span>
+            </summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Gasto</th>
+                    <th>Eventos</th>
+                    <th>Recurrencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${groupedProducts.map(product => `
+                    <tr>
+                      <td>${escapeHtml(product.label)}</td>
+                      <td>${money.format(product.value)}</td>
+                      <td>${
+                        product.source
+                          ? integer.format(product.source.events)
+                          : "—"
+                      }</td>
+                      <td>${
+                        product.source
+                          ? percent.format(product.source.recurrence)
+                          : "—"
+                      }</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        `;
+      }).join("");
+    }
+
+    function renderPrices() {
+      const changed = products
+        .filter(product =>
+          product.first &&
+          product.last &&
+          Math.abs(product.priceChange) >= 0.05
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(b.priceChange) -
+            Math.abs(a.priceChange)
+        );
+
+      destroy("prices");
+      charts.prices = new Chart($("priceChangeChart"), {
+        type: "bar",
+        data: {
+          labels: changed.slice(0, 20).map(
+            product => product.product
+          ),
+          datasets: [{
+            data: changed.slice(0, 20).map(
+              product => product.priceChange * 100
+            ),
+            backgroundColor: changed.slice(0, 20).map(
+              product =>
+                product.priceChange >= 0
+                  ? "#dc2626"
+                  : "#059669"
+            ),
+            borderRadius: 5
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: context =>
+                  `${number.format(context.raw)}%`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                callback: value => `${value}%`
+              }
+            }
+          }
+        }
+      });
+
+      $("priceTable").innerHTML = changed.map(product => `
+        <tr>
+          <td>${escapeHtml(product.product)}</td>
+          <td>${escapeHtml(product.category)}</td>
+          <td>${dates.format(product.first.date)}</td>
+          <td>${money.format(product.first.price)}</td>
+          <td>${dates.format(product.last.date)}</td>
+          <td>${money.format(product.last.price)}</td>
+          <td class="${
+            product.priceChange >= 0
+              ? "positive"
+              : "negative"
+          }">${percent.format(product.priceChange)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderBasket(data) {
+      const habitual = products.filter(
+        product => product.habitual
+      );
+
+      const baseline = habitual.reduce(
+        (sum, product) => sum + product.basketCost,
+        0
+      );
+
+      const monthly = data.monthly.map(([month]) => {
+        const value = habitual.reduce((sum, product) => {
+          const monthlyPrices =
+            product.monthlyPrices.get(month);
+
+          const price = monthlyPrices?.length
+            ? median(monthlyPrices)
+            : product.medianPrice;
+
+          return sum + price * product.medianQuantity;
+        }, 0);
+
+        return {
+          month,
+          value,
+          deviation: baseline
+            ? (value - baseline) / baseline
+            : 0
+        };
+      });
+
+      const latest = monthly.at(-1) || {
+        value: 0,
+        deviation: 0
+      };
+
+      $("basketBaseline").textContent = money.format(baseline);
+      $("basketLatest").textContent = money.format(latest.value);
+      $("basketDeviation").textContent =
+        percent.format(latest.deviation);
+      $("basketDeviation").className =
+        latest.deviation > 0
+          ? "positive"
+          : latest.deviation < 0
+            ? "negative"
+            : "";
+      $("habitualProducts").textContent =
+        integer.format(habitual.length);
+
+      destroy("basket");
+      charts.basket = new Chart($("basketChart"), {
+        data: {
+          labels: monthLabels(
+            monthly.map(item => item.month)
+          ),
+          datasets: [
+            {
+              type: "line",
+              label: "Valor de la canasta",
+              data: monthly.map(item => item.value),
+              borderColor: "#2563eb",
+              backgroundColor: "rgba(37,99,235,.10)",
+              fill: true,
+              tension: .3,
+              yAxisID: "y"
+            },
+            {
+              type: "bar",
+              label: "Desviación",
+              data: monthly.map(
+                item => item.deviation * 100
+              ),
+              backgroundColor: monthly.map(item =>
+                item.deviation >= 0
+                  ? "rgba(220,38,38,.3)"
+                  : "rgba(5,150,105,.3)"
+              ),
+              yAxisID: "y1"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: "index",
+            intersect: false
+          },
+          scales: {
+            x: {
+              ticks: {
+                autoSkip: false,
+                maxRotation: 0
+              }
+            },
+            y1: {
+              position: "right",
+              grid: {
+                drawOnChartArea: false
+              },
+              ticks: {
+                callback: value => `${value}%`
+              }
+            }
+          }
+        }
+      });
+
+      $("basketTable").innerHTML = habitual
+        .sort((a, b) => b.basketCost - a.basketCost)
+        .map(product => `
+          <tr>
+            <td>${escapeHtml(product.product)}</td>
+            <td>${escapeHtml(product.category)}</td>
+            <td>${percent.format(product.recurrence)}</td>
+            <td>${number.format(product.medianQuantity)}</td>
+            <td>${money.format(product.medianPrice)}</td>
+            <td>${money.format(product.basketCost)}</td>
+          </tr>
+        `).join("");
+    }
+
+    function render(data, metadata) {
+      $("periodo").textContent =
+        `${dates.format(data.invoiceDates[0])} — ` +
+        `${dates.format(data.invoiceDates.at(-1))}`;
+
+      $("sourceInfo").textContent =
+        `${metadata.name} · ` +
+        `${integer.format(data.rows.length)} líneas · ` +
+        `actualizado ${dates.format(
+          new Date(metadata.lastModifiedDateTime)
+        )}`;
+
+      renderSummary(data);
+      renderMonthly(data);
+      renderCategories(data);
+      renderPrices();
+      renderBasket(data);
+
+      $("dashboard").hidden = false;
+      $("tabs").hidden = false;
+    }
+
+    async function loadDashboard() {
+      loading(true);
+      status("Localizando el Excel en OneDrive…");
+
+      try {
+        const accessToken = await token();
+
+        const profile = await (
+          await graph(
+            "https://graph.microsoft.com/v1.0/me" +
+            "?$select=displayName,userPrincipalName",
+            accessToken
+          )
+        ).json();
+
+        $("usuario").textContent =
+          profile.displayName ||
+          profile.userPrincipalName;
+
+        const { metadata, buffer } =
+          await getWorkbook(accessToken);
+
+        status("Procesando facturas y preparando análisis…");
+
+        const rows = readRows(buffer);
+        const data = calculate(rows);
+
+        if (!data.invoiceCount) {
+          throw new Error(
+            "El Excel no contiene facturas válidas."
+          );
+        }
+
+        render(data, metadata);
+
+        status(
+          `Actualizado: ${integer.format(data.invoiceCount)} facturas, ` +
+          `${integer.format(rows.length)} líneas y ` +
+          `${integer.format(products.length)} productos.`,
+          "success"
+        );
+      } catch (error) {
+        console.error(error);
+        status(error.message, "error");
+      } finally {
+        loading(false);
+      }
+    }
+
+    async function login() {
+      try {
+        const response = await msal.loginPopup({
+          scopes: CONFIG.scopes,
+          prompt: "select_account"
+        });
+
+        account = response.account;
+        msal.setActiveAccount(account);
+
+        $("loginButton").hidden = true;
+        $("refreshButton").hidden = false;
+        $("logoutButton").hidden = false;
+
+        await loadDashboard();
+      } catch (error) {
+        console.error(error);
+        status(error.message, "error");
+      }
+    }
+
+    async function logout() {
+      await msal.logoutPopup({
+        account,
+        postLogoutRedirectUri: CONFIG.redirectUri
+      });
+
+      account = null;
+      $("dashboard").hidden = true;
+      $("tabs").hidden = true;
+      $("loginButton").hidden = false;
+      $("refreshButton").hidden = true;
+      $("logoutButton").hidden = true;
+      $("usuario").textContent = "";
+
+      status("Sesión cerrada.");
+    }
+
+    document.querySelectorAll(".tab").forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(
+          tab => tab.classList.remove("active")
+        );
+
+        document.querySelectorAll(".tab-panel").forEach(
+          panel => panel.classList.remove("active")
+        );
+
+        button.classList.add("active");
+        $(button.dataset.tab).classList.add("active");
+
+        setTimeout(() => {
+          Object.values(charts).forEach(chart => chart?.resize());
+        }, 50);
+      });
+    });
+
+    $("loginButton").addEventListener("click", login);
+    $("refreshButton").addEventListener("click", loadDashboard);
+    $("logoutButton").addEventListener("click", logout);
+
+    const existing = msal.getAllAccounts();
+
+    if (existing.length) {
+      account = existing[0];
+      msal.setActiveAccount(account);
+
+      $("loginButton").hidden = true;
+      $("refreshButton").hidden = false;
+      $("logoutButton").hidden = false;
+
+      loadDashboard();
+    }
+  </script>
 </body>
 </html>
