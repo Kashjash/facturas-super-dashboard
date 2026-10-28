@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Facturas Super</title>
+  <link rel="stylesheet" href="./styles.css">
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">ANÁLISIS DE COMPRAS</p>
+      <h1>Facturas Super</h1>
+      <p id="periodo">Inicia sesión para cargar tus datos.</p>
+    </div>
+
+    <div class="actions">
+      <span id="usuario"></span>
+      <button id="loginButton">Iniciar sesión</button>
+      <button id="refreshButton" class="secondary" hidden>Actualizar</button>
+      <button id="logoutButton" class="secondary" hidden>Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="status" class="status">
+      Conecta tu cuenta Microsoft para leer el Excel privado de OneDrive.
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="kpis">
+        <article class="kpi">
+          <span>Gasto total</span>
+          <strong id="totalGasto">—</strong>
+        </article>
+
+        <article class="kpi">
+          <span>Facturas</span>
+          <strong id="totalFacturas">—</strong>
+        </article>
+
+        <article class="kpi">
+          <span>Compra promedio</span>
+          <strong id="ticketPromedio">—</strong>
+        </article>
+
+        <article class="kpi">
+          <span>Productos distintos</span>
+          <strong id="totalProductos">—</strong>
+        </article>
+      </div>
+
+      <div class="grid two">
+        <article class="panel">
+          <div class="panel-title">
+            <h2>Gasto mensual</h2>
+            <span>Evolución por fecha de factura</span>
+          </div>
+          <canvas id="monthlyChart"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title">
+            <h2>Gasto por categoría</h2>
+            <span>Distribución de las compras</span>
+          </div>
+          <canvas id="categoryChart"></canvas>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-title">
+          <h2>Evolución de precios</h2>
+          <span>Precio unitario mediano mensual de productos frecuentes</span>
+        </div>
+        <canvas id="priceChart"></canvas>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Análisis por producto</h2>
+            <span>Recurrencia, gasto, precio y canasta habitual</span>
+          </div>
+
+          <input
+            id="productSearch"
+            type="search"
+            placeholder="Buscar producto o categoría"
+          >
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Eventos</th>
+                <th>Recurrencia</th>
+                <th>Cantidad</th>
+                <th>Gasto</th>
+                <th>Precio mediano</th>
+                <th>Días entre compras</th>
+                <th>Habitual</th>
+                <th>Cant. mediana/evento</th>
+                <th>Canasta habitual</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <footer>
+        <span id="sourceInfo"></span>
+        <span>El archivo permanece privado en OneDrive.</span>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
