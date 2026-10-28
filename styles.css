@@ -1,14 +1,15 @@
 :root {
   --navy: #14213d;
   --blue: #2563eb;
-  --cyan: #22c1c3;
+  --cyan: #0891b2;
+  --green: #059669;
+  --red: #dc2626;
+  --amber: #d97706;
   --background: #f4f7fb;
   --panel: #ffffff;
   --text: #172033;
   --muted: #667085;
   --border: #e4e9f2;
-  --success: #087f5b;
-  --danger: #b42318;
 }
 
 * {
@@ -26,14 +27,14 @@ header {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  padding: 34px max(5vw, 24px);
+  padding: 25px max(4vw, 20px);
   color: white;
   background: linear-gradient(120deg, var(--navy), #1e3a8a);
 }
 
 h1 {
-  margin: 3px 0;
-  font-size: clamp(30px, 5vw, 52px);
+  margin: 2px 0;
+  font-size: clamp(28px, 4vw, 42px);
 }
 
 h2 {
@@ -44,13 +45,13 @@ h2 {
 .eyebrow {
   margin: 0;
   color: #9ec5ff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: .16em;
 }
 
 #periodo {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: #dbeafe;
 }
 
@@ -58,13 +59,13 @@ h2 {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 9px;
 }
 
 button {
-  padding: 11px 16px;
+  padding: 10px 14px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   color: white;
   background: var(--blue);
   font-weight: 700;
@@ -72,8 +73,8 @@ button {
 }
 
 button.secondary {
-  border: 1px solid rgba(255, 255, 255, .35);
-  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.12);
 }
 
 button:disabled {
@@ -81,113 +82,147 @@ button:disabled {
   cursor: wait;
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 10px max(4vw, 20px);
+  border-bottom: 1px solid var(--border);
+  background: white;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: 10px 15px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.tab:hover {
+  color: var(--blue);
+  background: #eff6ff;
+}
+
+.tab.active {
+  color: white;
+  background: var(--blue);
+}
+
 main {
   max-width: 1500px;
   margin: auto;
-  padding: 26px max(4vw, 20px) 50px;
+  padding: 20px max(4vw, 18px) 45px;
 }
 
 .status {
-  margin-bottom: 22px;
-  padding: 14px 18px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
   border: 1px solid #bfdbfe;
-  border-radius: 10px;
+  border-radius: 9px;
   color: #1e40af;
   background: #eff6ff;
 }
 
 .status.error {
   border-color: #fecaca;
-  color: var(--danger);
+  color: #b42318;
   background: #fff1f2;
 }
 
 .status.success {
   border-color: #a7f3d0;
-  color: var(--success);
+  color: #087f5b;
   background: #ecfdf5;
 }
 
-.kpis {
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.kpis,
+.basket-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(140px, 270px));
+  gap: 10px;
 }
 
 .kpi,
 .panel {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--panel);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+  box-shadow: 0 5px 18px rgba(15, 23, 42, .045);
 }
 
 .kpi {
-  padding: 22px;
+  min-height: 78px;
+  padding: 13px 16px;
 }
 
-.kpi span,
-.panel-title span {
+.kpi span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .kpi strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 4px;
   color: var(--navy);
-  font-size: 30px;
+  font-size: 23px;
 }
 
-.grid {
+.summary-grid {
   display: grid;
-  gap: 18px;
-  margin-top: 18px;
-}
-
-.grid.two {
   grid-template-columns: 1.25fr .75fr;
+  gap: 15px;
+  margin-top: 15px;
 }
 
 .panel {
-  margin-top: 18px;
-  padding: 22px;
+  margin-top: 15px;
+  padding: 18px;
+}
+
+.summary-grid .panel {
+  margin-top: 0;
+}
+
+.large-panel {
+  min-height: 520px;
 }
 
 .panel-title {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .panel-title span {
   display: block;
   margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 canvas {
-  max-height: 340px;
+  width: 100% !important;
+  max-height: 430px;
 }
 
-input {
-  width: min(340px, 100%);
-  padding: 10px 13px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-}
-
-input:focus {
-  border-color: var(--blue);
+.large-panel canvas {
+  min-height: 400px;
 }
 
 .table-wrap {
   overflow: auto;
   max-height: 620px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 9px;
 }
 
 table {
@@ -201,7 +236,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 12px 10px;
+  padding: 11px 10px;
   color: white;
   background: var(--navy);
   text-align: right;
@@ -224,13 +259,39 @@ tbody tr:hover {
   background: #f8fafc;
 }
 
-.badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 99px;
-  color: var(--success);
-  background: #d1fae5;
+.positive {
+  color: var(--red);
   font-weight: 700;
+}
+
+.negative {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.category-details details {
+  margin-bottom: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+}
+
+.category-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 15px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.category-details summary span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.category-details table {
+  border-top: 1px solid var(--border);
 }
 
 footer {
@@ -242,23 +303,50 @@ footer {
   font-size: 12px;
 }
 
-@media (max-width: 950px) {
+@media (max-width: 850px) {
   header,
-  .panel-title,
   footer {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .kpis,
-  .grid.two {
-    grid-template-columns: 1fr 1fr;
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .large-panel {
+    min-height: 580px;
+  }
+
+  .large-panel canvas {
+    min-height: 470px;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 520px) {
   .kpis,
-  .grid.two {
-    grid-template-columns: 1fr;
+  .basket-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi {
+    min-height: 72px;
+    padding: 11px;
+  }
+
+  .kpi strong {
+    font-size: 19px;
+  }
+
+  .panel {
+    padding: 13px;
+  }
+
+  .large-panel {
+    min-height: 640px;
+  }
+
+  .large-panel canvas {
+    min-height: 520px;
   }
 }
