@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard Facturas Super</title>
+
   <link rel="stylesheet" href="./styles.css">
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -15,7 +16,7 @@
     <div>
       <p class="eyebrow">ANÁLISIS DE COMPRAS</p>
       <h1>Facturas Super</h1>
-      <p id="periodo">Inicia sesión para cargar tus datos.</p>
+      <p id="periodo">Inicia sesión para cargar los datos.</p>
     </div>
 
     <div class="actions">
@@ -26,101 +27,189 @@
     </div>
   </header>
 
+  <nav id="tabs" class="tabs" hidden>
+    <button class="tab active" data-tab="resumen">Resumen</button>
+    <button class="tab" data-tab="mensual">Gasto mensual</button>
+    <button class="tab" data-tab="categorias">Categorías</button>
+    <button class="tab" data-tab="precios">Precios</button>
+    <button class="tab" data-tab="canasta">Canasta habitual</button>
+  </nav>
+
   <main>
     <section id="status" class="status">
       Conecta tu cuenta Microsoft para leer el Excel privado de OneDrive.
     </section>
 
-    <section id="dashboard" hidden>
-      <div class="kpis">
-        <article class="kpi">
-          <span>Gasto total</span>
-          <strong id="totalGasto">—</strong>
-        </article>
+    <div id="dashboard" hidden>
 
-        <article class="kpi">
-          <span>Facturas</span>
-          <strong id="totalFacturas">—</strong>
-        </article>
+      <section id="resumen" class="tab-panel active">
+        <div class="kpis">
+          <article class="kpi">
+            <span>Gasto total</span>
+            <strong id="totalGasto">—</strong>
+          </article>
 
-        <article class="kpi">
-          <span>Compra promedio</span>
-          <strong id="ticketPromedio">—</strong>
-        </article>
+          <article class="kpi">
+            <span>Facturas</span>
+            <strong id="totalFacturas">—</strong>
+          </article>
 
-        <article class="kpi">
-          <span>Productos distintos</span>
-          <strong id="totalProductos">—</strong>
-        </article>
-      </div>
+          <article class="kpi">
+            <span>Compra promedio</span>
+            <strong id="ticketPromedio">—</strong>
+          </article>
 
-      <div class="grid two">
-        <article class="panel">
+          <article class="kpi">
+            <span>Productos distintos</span>
+            <strong id="totalProductos">—</strong>
+          </article>
+        </div>
+
+        <div class="summary-grid">
+          <article class="panel">
+            <div class="panel-title">
+              <div>
+                <h2>Gasto reciente</h2>
+                <span>Últimos meses disponibles</span>
+              </div>
+            </div>
+            <canvas id="summaryMonthlyChart"></canvas>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title">
+              <div>
+                <h2>Principales categorías</h2>
+                <span>Concentración del gasto</span>
+              </div>
+            </div>
+            <canvas id="summaryCategoryChart"></canvas>
+          </article>
+        </div>
+      </section>
+
+      <section id="mensual" class="tab-panel">
+        <article class="panel large-panel">
           <div class="panel-title">
-            <h2>Gasto mensual</h2>
-            <span>Evolución por fecha de factura</span>
+            <div>
+              <h2>Gasto mensual</h2>
+              <span>Eje en miles; meses y años agrupados</span>
+            </div>
           </div>
           <canvas id="monthlyChart"></canvas>
         </article>
+      </section>
 
-        <article class="panel">
+      <section id="categorias" class="tab-panel">
+        <article class="panel large-panel">
           <div class="panel-title">
-            <h2>Gasto por categoría</h2>
-            <span>Distribución de las compras</span>
+            <div>
+              <h2>Gasto por categoría</h2>
+              <span>Categorías que explican 80% del gasto; resto agrupado</span>
+            </div>
           </div>
           <canvas id="categoryChart"></canvas>
         </article>
-      </div>
 
-      <article class="panel">
-        <div class="panel-title">
-          <h2>Evolución de precios</h2>
-          <span>Precio unitario mediano mensual de productos frecuentes</span>
-        </div>
-        <canvas id="priceChart"></canvas>
-      </article>
-
-      <article class="panel">
-        <div class="panel-title">
-          <div>
-            <h2>Análisis por producto</h2>
-            <span>Recurrencia, gasto, precio y canasta habitual</span>
+        <article class="panel">
+          <div class="panel-title">
+            <div>
+              <h2>Detalle por categoría</h2>
+              <span>Abre cada categoría para ver sus productos principales</span>
+            </div>
           </div>
+          <div id="categoryDetails" class="category-details"></div>
+        </article>
+      </section>
 
-          <input
-            id="productSearch"
-            type="search"
-            placeholder="Buscar producto o categoría"
-          >
+      <section id="precios" class="tab-panel">
+        <article class="panel large-panel">
+          <div class="panel-title">
+            <div>
+              <h2>Productos con variación de precio</h2>
+              <span>Solo cambios de ±5% o más entre la primera y última observación</span>
+            </div>
+          </div>
+          <canvas id="priceChangeChart"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Primera fecha</th>
+                  <th>Primer precio</th>
+                  <th>Última fecha</th>
+                  <th>Último precio</th>
+                  <th>Variación</th>
+                </tr>
+              </thead>
+              <tbody id="priceTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="canasta" class="tab-panel">
+        <div class="basket-kpis">
+          <article class="kpi">
+            <span>Valor habitual base</span>
+            <strong id="basketBaseline">—</strong>
+          </article>
+
+          <article class="kpi">
+            <span>Valor del último mes</span>
+            <strong id="basketLatest">—</strong>
+          </article>
+
+          <article class="kpi">
+            <span>Desviación último mes</span>
+            <strong id="basketDeviation">—</strong>
+          </article>
+
+          <article class="kpi">
+            <span>Productos habituales</span>
+            <strong id="habitualProducts">—</strong>
+          </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Eventos</th>
-                <th>Recurrencia</th>
-                <th>Cantidad</th>
-                <th>Gasto</th>
-                <th>Precio mediano</th>
-                <th>Días entre compras</th>
-                <th>Habitual</th>
-                <th>Cant. mediana/evento</th>
-                <th>Canasta habitual</th>
-              </tr>
-            </thead>
-            <tbody id="productTable"></tbody>
-          </table>
-        </div>
-      </article>
+        <article class="panel large-panel">
+          <div class="panel-title">
+            <div>
+              <h2>Canasta habitual mensual</h2>
+              <span>Valor estimado y desviación frente al valor base</span>
+            </div>
+          </div>
+          <canvas id="basketChart"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto habitual</th>
+                  <th>Categoría</th>
+                  <th>Recurrencia</th>
+                  <th>Cantidad habitual</th>
+                  <th>Precio mediano</th>
+                  <th>Valor habitual</th>
+                </tr>
+              </thead>
+              <tbody id="basketTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
 
       <footer>
         <span id="sourceInfo"></span>
         <span>El archivo permanece privado en OneDrive.</span>
       </footer>
-    </section>
+    </div>
   </main>
 
   <script type="module" src="./app.js"></script>
