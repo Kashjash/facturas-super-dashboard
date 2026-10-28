@@ -1,0 +1,719 @@
+:root {--navy: #14213d;--blue: #2563eb;--cyan: #22c1c3;--background: #f4f7fb;--panel: #ffffff;--text: #172033;--muted: #667085;--border: #e4000000000F2;--success: #87f5b;--danger: #b42318;}
+
+* {box-sizing: border-box;}
+
+body {margin: 0;font-family: Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color: VAR(--text);background: VAR(--background);}
+
+header {display: flex;justify-content: space-between;gap: 24px;padding: 34px MAX(5vw; 24px);color: white;background: linear-gradient(120deg; VAR(--navy); #1000a8a);}
+
+H1 {margin: 3px 0;font-size: clamp(30px; 5vw; 52px);}
+
+H2 {margin: 0;font-size: 18px;}.eyebrow {margin: 0;color: #9ec5ff;font-size: 12px;font-weight: 800;letter-spacing: 0.16em;}
+
+#periodo {margin: 6px 0 0;color: #dbeafe;}.actions {display: flex;align-items: center;flex-wrap: wrap;gap: 10px;}
+
+button {padding: 11px 16px;border: 0;border-radius: 9px;color: white;background: VAR(--blue);font-weight: 700;cursor: pointer;}
+
+button.secondary {border: 1px solid rgba(255;255;255;0,35);background: rgba(255;255;255;0,12);}
+
+button:disabled {opacity: 0,6;cursor: wait;}
+
+main {max-width: 1500px;margin: auto;padding: 26px MAX(4vw; 20px) 50px;}.status {margin-bottom: 22px;padding: 14px 18px;border: 1px solid #bfdbfe;border-radius: 10px;color: #1E+40af;background: #eff6ff;}.status.error {border-color: #fecaca;color: VAR(--danger);background: #fff1F2;}.status.success {border-color: #a7f3d0;color: VAR(--success);background: #ecfdf5;}.kpis {display: grid;grid-template-columns: repeat(4; minmax(180px; 1fr));gap: 16px;}.kpi;
+.panel {border: 1px solid VAR(--border);border-radius: 14px;background: VAR(--panel);box-shadow: 0 8px 24px rgba(15; 23; 42; 0,05);}.kpi {padding: 22px;}.kpi span;
+.panel-title span {color: VAR(--muted);font-size: 13px;}.kpi strong {display: block;margin-top: 7px;color: VAR(--navy);font-size: 30px;}.grid {display: grid;gap: 18px;margin-top: 18px;}.grid.two {grid-template-columns: 1,25fr.75fr;}.panel {margin-top: 18px;padding: 22px;}.panel-title {display: flex;justify-content: space-between;align-items: center;gap: 14px;margin-bottom: 18px;}.panel-title span {display: block;margin-top: 4px;}
+
+canvas {max-height: 340px;}
+
+input {width: MIN(340px; 100%);padding: 10px 13px;border: 1px solid VAR(--border);border-radius: 8px;outline: none;}
+
+input:focus {border-color: VAR(--blue);}.table-wrap {overflow: auto;max-height: 620px;border: 1px solid VAR(--border);border-radius: 10px;}
+
+table {width: 100%;border-collapse: collapse;font-size: 13px;white-space: nowrap;}
+
+th {position: sticky;top: 0;z-index: 2;padding: 12px 10px;color: white;background: VAR(--navy);text-align: right;}
+
+th:first-child;
+TH:NTH-child(2);
+td:first-child;
+TD:NTH-child(2) {text-align: left;}
+
+td {padding: 10px;border-bottom: 1px solid VAR(--border);text-align: right;}
+
+tbody tr:hover {background: #f8fafc;}.badge {display: inline-block;padding: 3px 8px;border-radius: 99px;color: VAR(--success);background: #d1FAE5;font-weight: 700;}
+
+footer {display: flex;justify-content: space-between;gap: 20px;padding: 20px 4px;color: VAR(--muted);font-size: 12px;}
+
+@media (max-width: 950px) {header,.panel-title,footer {align-items: flex-start;flex-direction: column;}.kpis,.grid.two {grid-template-columns: 1fr 1fr;}}
+
+@media (max-width: 600px) {.kpis,.grid.two {grid-template-columns: 1fr;}}```
+
+## 4. `app.js`
+
+```javascript
+import {
+  PublicClientApplication,
+  InteractionRequiredAuthError
+} from "https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/+esm";
+
+import { CONFIG } from "./config.js";
+
+const currency = new Intl.NumberFormat("es-PA", {
+  style: "currency",
+  currency: "USD"
+});
+
+const number = new Intl.NumberFormat("es-PA", {
+  maximumFractionDigits: 2
+});
+
+const percent = new Intl.NumberFormat("es-PA", {
+  style: "percent",
+  maximumFractionDigits: 1
+});
+
+const dateFormat = new Intl.DateTimeFormat("es-PA", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric"
+});
+
+const msalInstance = new PublicClientApplication({
+  auth: {
+    clientId: CONFIG.clientId,
+    authority: CONFIG.authority,
+    redirectUri: CONFIG.redirectUri,
+    postLogoutRedirectUri: CONFIG.redirectUri
+  },
+  cache: {
+    cacheLocation: "localStorage"
+  }
+});
+
+await msalInstance.initialize();
+
+const loginButton = document.getElementById("loginButton");
+const logoutButton = document.getElementById("logoutButton");
+const refreshButton = document.getElementById("refreshButton");
+const statusBox = document.getElementById("status");
+const dashboard = document.getElementById("dashboard");
+const productSearch = document.getElementById("productSearch");
+
+let account = null;
+let products = [];
+let charts = {};
+
+function setStatus(message, type = "") {
+  statusBox.textContent = message;
+  statusBox.className = `status ${type}`.trim();
+}
+
+function setLoading(loading) {
+  loginButton.disabled = loading;
+  refreshButton.disabled = loading;
+  loginButton.textContent = loading ? "Conectando..." : "Iniciar sesión";
+  refreshButton.textContent = loading ? "Actualizando..." : "Actualizar";
+}
+
+function asNumber(value) {
+  if (typeof value === "number") return value;
+
+  if (value === null || value === undefined || value === "") return 0;
+
+  const cleaned = String(value)
+    .replace(/\$/g, "")
+    .replace(/,/g, "")
+    .trim();
+
+  const result = Number(cleaned);
+  return Number.isFinite(result) ? result : 0;
+}
+
+function asDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
+  }
+
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+
+  if (match) {
+    return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function median(values) {
+  const clean = values
+    .map(asNumber)
+    .filter(value => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+  if (!clean.length) return 0;
+
+  const middle = Math.floor(clean.length / 2);
+
+  return clean.length % 2
+    ? clean[middle]
+    : (clean[middle - 1] + clean[middle]) / 2;
+}
+
+function averageDays(dates) {
+  const uniqueDates = [...new Set(
+    dates
+      .filter(Boolean)
+      .map(date => date.toISOString().slice(0, 10))
+  )]
+    .sort()
+    .map(value => new Date(`${value}T12:00:00`));
+
+  if (uniqueDates.length < 2) return null;
+
+  const differences = [];
+
+  for (let i = 1; i < uniqueDates.length; i++) {
+    differences.push(
+      (uniqueDates[i] - uniqueDates[i - 1]) / 86400000
+    );
+  }
+
+  return differences.reduce((sum, value) => sum + value, 0)
+    / differences.length;
+}
+
+async function getAccessToken() {
+  const request = {
+    account,
+    scopes: CONFIG.scopes
+  };
+
+  try {
+    const response = await msalInstance.acquireTokenSilent(request);
+    return response.accessToken;
+  } catch (error) {
+    if (error instanceof InteractionRequiredAuthError) {
+      const response = await msalInstance.acquireTokenPopup(request);
+      return response.accessToken;
+    }
+    throw error;
+  }
+}
+
+async function graphFetch(url, token, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {})
+    }
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Microsoft Graph ${response.status}: ${detail}`);
+  }
+
+  return response;
+}
+
+async function findWorkbook(token) {
+  const escapedName = CONFIG.workbookName.replaceAll("'", "''");
+  const searchTerm = encodeURIComponent(`'${escapedName}'`);
+
+  const url =
+    `https://graph.microsoft.com/v1.0/me/drive/root/search(q=${searchTerm})` +
+    "?$select=id,name,size,lastModifiedDateTime,parentReference,webUrl";
+
+  const response = await graphFetch(url, token);
+  const data = await response.json();
+
+  const matches = data.value.filter(item =>
+    item.name.toLowerCase() === CONFIG.workbookName.toLowerCase()
+  );
+
+  if (!matches.length) {
+    throw new Error(
+      `No se encontró "${CONFIG.workbookName}" en tu OneDrive.`
+    );
+  }
+
+  matches.sort((a, b) =>
+    new Date(b.lastModifiedDateTime) - new Date(a.lastModifiedDateTime)
+  );
+
+  return matches[0];
+}
+
+async function downloadWorkbook(token, itemId) {
+  const url =
+    `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`;
+
+  const response = await graphFetch(url, token);
+  return response.arrayBuffer();
+}
+
+function readInvoiceRows(buffer) {
+  const workbook = XLSX.read(buffer, {
+    type: "array",
+    cellDates: true
+  });
+
+  const sheet = workbook.Sheets[CONFIG.worksheetName];
+
+  if (!sheet) {
+    throw new Error(
+      `No existe la pestaña "${CONFIG.worksheetName}" en el Excel.`
+    );
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    defval: null,
+    raw: true
+  });
+
+  const required = [
+    "ID factura",
+    "Fecha Factura",
+    "Descripción",
+    "Cantidad",
+    "Valor Unitario",
+    "Valor Item",
+    "Total Factura",
+    "Producto normalizado",
+    "Categoría"
+  ];
+
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const missing = required.filter(header => !headers.includes(header));
+
+  if (missing.length) {
+    throw new Error(
+      `Faltan columnas en el Excel: ${missing.join(", ")}`
+    );
+  }
+
+  return rows
+    .map(row => ({
+      invoiceId: String(row["ID factura"] ?? "").trim(),
+      date: asDate(row["Fecha Factura"]),
+      description: String(row["Descripción"] ?? "").trim(),
+      quantity: asNumber(row["Cantidad"]),
+      unitPrice: asNumber(row["Valor Unitario"]),
+      itemValue: asNumber(row["Valor Item"]),
+      invoiceTotal: asNumber(row["Total Factura"]),
+      product: String(
+        row["Producto normalizado"] || row["Descripción"] || "Sin producto"
+      ).trim(),
+      category: String(row["Categoría"] || "Sin categoría").trim()
+    }))
+    .filter(row => row.invoiceId && row.date);
+}
+
+function aggregateData(rows) {
+  const invoices = new Map();
+  const productMap = new Map();
+  const categoryMap = new Map();
+  const monthlyMap = new Map();
+
+  for (const row of rows) {
+    if (!invoices.has(row.invoiceId)) {
+      invoices.set(row.invoiceId, {
+        date: row.date,
+        total: row.invoiceTotal
+      });
+    }
+
+    categoryMap.set(
+      row.category,
+      (categoryMap.get(row.category) || 0) + row.itemValue
+    );
+
+    if (!productMap.has(row.product)) {
+      productMap.set(row.product, {
+        product: row.product,
+        category: row.category,
+        invoices: new Set(),
+        dates: [],
+        quantity: 0,
+        spend: 0,
+        prices: [],
+        quantityByInvoice: new Map(),
+        pricesByMonth: new Map()
+      });
+    }
+
+    const product = productMap.get(row.product);
+
+    product.invoices.add(row.invoiceId);
+    product.dates.push(row.date);
+    product.quantity += row.quantity;
+    product.spend += row.itemValue;
+
+    if (row.unitPrice > 0) product.prices.push(row.unitPrice);
+
+    product.quantityByInvoice.set(
+      row.invoiceId,
+      (product.quantityByInvoice.get(row.invoiceId) || 0) + row.quantity
+    );
+
+    const month = row.date.toISOString().slice(0, 7);
+
+    if (!product.pricesByMonth.has(month)) {
+      product.pricesByMonth.set(month, []);
+    }
+
+    if (row.unitPrice > 0) {
+      product.pricesByMonth.get(month).push(row.unitPrice);
+    }
+  }
+
+  for (const invoice of invoices.values()) {
+    const month = invoice.date.toISOString().slice(0, 7);
+
+    monthlyMap.set(
+      month,
+      (monthlyMap.get(month) || 0) + invoice.total
+    );
+  }
+
+  const invoiceCount = invoices.size;
+
+  products = [...productMap.values()]
+    .map(product => {
+      const events = product.invoices.size;
+      const recurrence = invoiceCount ? events / invoiceCount : 0;
+      const medianPrice = median(product.prices);
+      const medianQuantity = median([...product.quantityByInvoice.values()]);
+
+      return {
+        ...product,
+        events,
+        recurrence,
+        medianPrice,
+        averageDays: averageDays(product.dates),
+        usual: recurrence >= 0.4,
+        medianQuantity,
+        basketCost: medianPrice * medianQuantity
+      };
+    })
+    .sort((a, b) => b.spend - a.spend);
+
+  const dates = [...invoices.values()]
+    .map(invoice => invoice.date)
+    .sort((a, b) => a - b);
+
+  const totalSpend = [...invoices.values()]
+    .reduce((sum, invoice) => sum + invoice.total, 0);
+
+  return {
+    rows,
+    invoices,
+    invoiceCount,
+    totalSpend,
+    dates,
+    monthly: [...monthlyMap.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    categories: [...categoryMap.entries()].sort((a, b) => b[1] - a[1])
+  };
+}
+
+function destroyChart(name) {
+  if (charts[name]) charts[name].destroy();
+}
+
+function renderCharts(data) {
+  destroyChart("monthly");
+  destroyChart("category");
+  destroyChart("price");
+
+  charts.monthly = new Chart(
+    document.getElementById("monthlyChart"),
+    {
+      type: "line",
+      data: {
+        labels: data.monthly.map(([month]) => month),
+        datasets: [{
+          label: "Gasto mensual",
+          data: data.monthly.map(([, value]) => value),
+          borderColor: "#2563eb",
+          backgroundColor: "rgba(37,99,235,.12)",
+          fill: true,
+          tension: .3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => currency.format(context.raw)
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: value => currency.format(value)
+            }
+          }
+        }
+      }
+    }
+  );
+
+  charts.category = new Chart(
+    document.getElementById("categoryChart"),
+    {
+      type: "doughnut",
+      data: {
+        labels: data.categories.map(([category]) => category),
+        datasets: [{
+          data: data.categories.map(([, value]) => value),
+          backgroundColor: [
+            "#2563eb", "#22c1c3", "#f59e0b", "#8b5cf6",
+            "#10b981", "#ef4444", "#64748b", "#ec4899",
+            "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: context =>
+                `${context.label}: ${currency.format(context.raw)}`
+            }
+          }
+        }
+      }
+    }
+  );
+
+  const priceProducts = [...products]
+    .filter(product => product.events >= 3)
+    .sort((a, b) => b.events - a.events)
+    .slice(0, 5);
+
+  const months = [...new Set(
+    priceProducts.flatMap(product => [...product.pricesByMonth.keys()])
+  )].sort();
+
+  charts.price = new Chart(
+    document.getElementById("priceChart"),
+    {
+      type: "line",
+      data: {
+        labels: months,
+        datasets: priceProducts.map((product, index) => ({
+          label: product.product,
+          data: months.map(month => {
+            const values = product.pricesByMonth.get(month);
+            return values?.length ? median(values) : null;
+          }),
+          borderColor: [
+            "#2563eb", "#22c1c3", "#f59e0b", "#8b5cf6", "#ef4444"
+          ][index],
+          tension: .25,
+          spanGaps: true
+        }))
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: "nearest",
+          intersect: false
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: value => currency.format(value)
+            }
+          }
+        }
+      }
+    }
+  );
+}
+
+function renderProductTable(filter = "") {
+  const query = filter.trim().toLowerCase();
+
+  const filtered = products.filter(product =>
+    product.product.toLowerCase().includes(query) ||
+    product.category.toLowerCase().includes(query)
+  );
+
+  document.getElementById("productTable").innerHTML = filtered
+    .map(product => `
+      <tr>
+        <td>${escapeHtml(product.product)}</td>
+        <td>${escapeHtml(product.category)}</td>
+        <td>${number.format(product.events)}</td>
+        <td>${percent.format(product.recurrence)}</td>
+        <td>${number.format(product.quantity)}</td>
+        <td>${currency.format(product.spend)}</td>
+        <td>${currency.format(product.medianPrice)}</td>
+        <td>${product.averageDays === null
+          ? "—"
+          : number.format(product.averageDays)}</td>
+        <td>${product.usual
+          ? '<span class="badge">Sí</span>'
+          : "No"}</td>
+        <td>${number.format(product.medianQuantity)}</td>
+        <td>${currency.format(product.basketCost)}</td>
+      </tr>
+    `)
+    .join("");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderDashboard(data, workbookItem) {
+  document.getElementById("totalGasto").textContent =
+    currency.format(data.totalSpend);
+
+  document.getElementById("totalFacturas").textContent =
+    number.format(data.invoiceCount);
+
+  document.getElementById("ticketPromedio").textContent =
+    currency.format(data.totalSpend / data.invoiceCount);
+
+  document.getElementById("totalProductos").textContent =
+    number.format(products.length);
+
+  const firstDate = data.dates[0];
+  const lastDate = data.dates[data.dates.length - 1];
+
+  document.getElementById("periodo").textContent =
+    `${dateFormat.format(firstDate)} — ${dateFormat.format(lastDate)}`;
+
+  document.getElementById("sourceInfo").textContent =
+    `${workbookItem.name} · ${data.rows.length.toLocaleString("es-PA")} líneas · ` +
+    `actualizado ${dateFormat.format(new Date(workbookItem.lastModifiedDateTime))}`;
+
+  renderCharts(data);
+  renderProductTable();
+
+  dashboard.hidden = false;
+}
+
+async function loadDashboard() {
+  setLoading(true);
+  setStatus("Buscando el Excel en OneDrive…");
+
+  try {
+    const token = await getAccessToken();
+
+    const profileResponse = await graphFetch(
+      "https://graph.microsoft.com/v1.0/me?$select=displayName,userPrincipalName",
+      token
+    );
+
+    const profile = await profileResponse.json();
+
+    document.getElementById("usuario").textContent =
+      profile.displayName || profile.userPrincipalName;
+
+    setStatus("Descargando la última versión guardada del Excel…");
+
+    const workbookItem = await findWorkbook(token);
+    const buffer = await downloadWorkbook(token, workbookItem.id);
+
+    setStatus("Procesando facturas y calculando métricas…");
+
+    const rows = readInvoiceRows(buffer);
+    const data = aggregateData(rows);
+
+    if (!data.invoiceCount) {
+      throw new Error("El Excel no contiene facturas válidas.");
+    }
+
+    renderDashboard(data, workbookItem);
+
+    setStatus(
+      `Dashboard actualizado: ${number.format(data.invoiceCount)} facturas y ` +
+      `${number.format(rows.length)} líneas analizadas.`,
+      "success"
+    );
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "No fue posible cargar el dashboard.", "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function login() {
+  try {
+    const response = await msalInstance.loginPopup({
+      scopes: CONFIG.scopes,
+      prompt: "select_account"
+    });
+
+    account = response.account;
+    msalInstance.setActiveAccount(account);
+
+    loginButton.hidden = true;
+    logoutButton.hidden = false;
+    refreshButton.hidden = false;
+
+    await loadDashboard();
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "No fue posible iniciar sesión.", "error");
+    setLoading(false);
+  }
+}
+
+async function logout() {
+  await msalInstance.logoutPopup({
+    account,
+    postLogoutRedirectUri: CONFIG.redirectUri
+  });
+
+  account = null;
+  dashboard.hidden = true;
+  loginButton.hidden = false;
+  logoutButton.hidden = true;
+  refreshButton.hidden = true;
+  document.getElementById("usuario").textContent = "";
+
+  setStatus(
+    "Sesión cerrada. Conecta tu cuenta Microsoft para cargar los datos."
+  );
+}
+
+loginButton.addEventListener("click", login);
+refreshButton.addEventListener("click", loadDashboard);
+logoutButton.addEventListener("click", logout);
+
+productSearch.addEventListener("input", event => {
+  renderProductTable(event.target.value);
+});
+
+const existingAccounts = msalInstance.getAllAccounts();
+
+if (existingAccounts.length) {
+  account = existingAccounts[0];
+  msalInstance.setActiveAccount(account);
+
+  loginButton.hidden = true;
+  logoutButton.hidden = false;
+  refreshButton.hidden = false;
+
+  loadDashboard();
+}
